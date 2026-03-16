@@ -41,5 +41,11 @@ public interface IConversationRepository {
      * @return 符合条件的群聊列表
      */
     List<Conversation> findByNameAndType(String name, Integer type);
+
+    /**
+     * CAS 更新会话序列号和摘要（乐观策略）
+     * 仅当 newSeq > currentSeq 时才更新，避免并发写入时回退
+     */
+    boolean casUpdateSeqAndSummary(Long conversationId, Long newSeq, String lastMsgContent, java.time.LocalDateTime lastMsgTime);
 }
 

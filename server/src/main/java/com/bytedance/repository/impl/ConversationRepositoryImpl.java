@@ -63,5 +63,11 @@ public class ConversationRepositoryImpl implements IConversationRepository {
                         .eq(Conversation::getType, type)
         );
     }
+
+    @Override
+    public boolean casUpdateSeqAndSummary(Long conversationId, Long newSeq, String lastMsgContent, java.time.LocalDateTime lastMsgTime) {
+        int rows = conversationMapper.casUpdateSeqAndSummary(conversationId, newSeq, lastMsgContent, lastMsgTime);
+        return rows > 0;
+    }
 }
 
