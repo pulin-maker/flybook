@@ -1,10 +1,11 @@
 package com.bytedance.usecase.message;
 
+import cn.hutool.core.lang.Snowflake;
 import cn.hutool.json.JSONUtil;
-import com.bytedance.consumer.WebSocketServer;
 import com.bytedance.entity.Conversation;
-import com.bytedance.entity.ConversationMember;
 import com.bytedance.entity.Message;
+import com.bytedance.event.MessageSentEvent;
+import com.bytedance.mq.MessageEventProducer;
 import com.bytedance.repository.IConversationMemberRepository;
 import com.bytedance.repository.IConversationRepository;
 import com.bytedance.repository.IMessageRepository;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 发送消息用例
@@ -25,14 +25,20 @@ public class SendMessageUseCase {
     private final IMessageRepository messageRepository;
     private final IConversationRepository conversationRepository;
     private final IConversationMemberRepository conversationMemberRepository;
+    private final Snowflake snowflake;
+    private final MessageEventProducer messageEventProducer;
 
     @Autowired
     public SendMessageUseCase(IMessageRepository messageRepository,
                              IConversationRepository conversationRepository,
-                             IConversationMemberRepository conversationMemberRepository) {
+                             IConversationMemberRepository conversationMemberRepository,
+                             Snowflake snowflake,
+                             MessageEventProducer messageEventProducer) {
         this.messageRepository = messageRepository;
         this.conversationRepository = conversationRepository;
         this.conversationMemberRepository = conversationMemberRepository;
+        this.snowflake = snowflake;
+        this.messageEventProducer = messageEventProducer;
     }
 
     /**
@@ -46,32 +52,29 @@ public class SendMessageUseCase {
             throw new RuntimeException("您不是该会话成员，无法发送消息");
         }
 
-        // 2. 锁会话 & 校验
-        Conversation conversation = conversationRepository.findByIdForUpdate(conversationId);
+        // 2. 查询会话（无锁），仅验证存在性
+        Conversation conversation = conversationRepository.findById(conversationId);
         if (conversation == null) {
             throw new RuntimeException("会话不存在");
         }
 
-        // 3. 生成 Seq
-        long newSeq = conversation.getCurrentSeq() + 1;
+        // 3. 使用 Snowflake 生成全局唯一、时间有序的序列号（无需行锁）
+        long newSeq = snowflake.nextId();
 
         // 4. 构建消息
+        LocalDateTime now = LocalDateTime.now();
         Message message = Message.builder()
                 .conversationId(conversationId)
                 .senderId(senderId)
                 .seq(newSeq)
                 .msgType(msgType)
                 .content(contentJson)
-                .createdTime(LocalDateTime.now())
+                .createdTime(now)
                 .build();
 
         messageRepository.save(message);
 
-        // 5. 更新会话摘要
-        conversation.setCurrentSeq(newSeq);
-        conversation.setLastMsgTime(LocalDateTime.now());
-
-        // 根据类型生成摘要
+        // 5. CAS 更新会话摘要（仅当 newSeq > currentSeq 时才更新）
         String summary = "[未知消息]";
         if (msgType == 1) {
             summary = JSONUtil.parseObj(contentJson).getStr("text");
@@ -80,28 +83,23 @@ public class SendMessageUseCase {
         } else if (msgType == 5) {
             summary = "[待办任务]";
         }
-        conversation.setLastMsgContent(summary);
-        conversationRepository.update(conversation);
+        conversationRepository.casUpdateSeqAndSummary(conversationId, newSeq, summary, now);
 
         // 6. 更新未读数
         conversationMemberRepository.incrementUnreadCount(conversationId, senderId);
 
-        // 7. 实时推送
-        List<ConversationMember> members = conversationMemberRepository
-                .findByConversationId(conversationId);
-
-        // 构建推送 JSON
-        String pushJson = JSONUtil.toJsonStr(message);
-
-        // 循环推送
-        for (ConversationMember member : members) {
-            // 排除自己
-            if (!member.getUserId().equals(senderId)) {
-                WebSocketServer.pushMessage(member.getUserId(), pushJson);
-            }
-        }
+        // 7. 事务提交后异步推送（通过 RocketMQ 解耦）
+        MessageSentEvent event = MessageSentEvent.builder()
+                .messageId(message.getMessageId())
+                .conversationId(conversationId)
+                .senderId(senderId)
+                .seq(newSeq)
+                .msgType(msgType)
+                .content(contentJson)
+                .createdTime(now.toString())
+                .build();
+        messageEventProducer.sendAfterCommit(event);
 
         return message;
     }
 }
-

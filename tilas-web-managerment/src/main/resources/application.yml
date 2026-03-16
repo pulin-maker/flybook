@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: tlias-web-management
+  #mysql????
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/tilas
+    username: root
+    password: Chubao88!
+mybatis:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

@@ -44,3 +44,22 @@ storage:
   access-prefix: /files/
   # 当前后端服务的地址，用于拼接完整URL
   domain: http://localhost:8081
+
+# Snowflake ID 配置
+flybook:
+  snowflake:
+    worker-id: 1
+    datacenter-id: 1
+  server:
+    id: # 留空则自动生成
+  mq:
+    topic: flybook-message-push
+    consumer-group: flybook-push-consumer-group
+
+# RocketMQ 配置
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: flybook-producer-group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
