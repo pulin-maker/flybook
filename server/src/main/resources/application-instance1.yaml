@@ -1,0 +1,10 @@
+# 实例 1 配置（端口 8081，雪花 ID worker-id=1）
+server:
+  port: 8081
+
+flybook:
+  snowflake:
+    worker-id: 1
+    datacenter-id: 1
+  server:
+    id: instance-1

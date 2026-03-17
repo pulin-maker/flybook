@@ -12,6 +12,7 @@ import com.bytedance.service.IConversationService;
 import com.bytedance.usecase.conversation.AddMembersUseCase;
 import com.bytedance.usecase.conversation.CreateConversationUseCase;
 import com.bytedance.usecase.conversation.GetConversationListUseCase;
+import com.bytedance.usecase.conversation.GroupPermissionUseCase;
 import com.bytedance.vo.ConversationVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
     private final CreateConversationUseCase createConversationUseCase;
     private final GetConversationListUseCase getConversationListUseCase;
     private final AddMembersUseCase addMembersUseCase;
+    private final GroupPermissionUseCase groupPermissionUseCase;
     private final IConversationRepository conversationRepository;
     private final IConversationMemberRepository conversationMemberRepository;
     private final ConversationMemberMapper conversationMemberMapper;
@@ -43,12 +45,14 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
     public ConversationServiceImpl(CreateConversationUseCase createConversationUseCase,
                                   GetConversationListUseCase getConversationListUseCase,
                                   AddMembersUseCase addMembersUseCase,
+                                  GroupPermissionUseCase groupPermissionUseCase,
                                   IConversationRepository conversationRepository,
                                   IConversationMemberRepository conversationMemberRepository,
                                   ConversationMemberMapper conversationMemberMapper) {
         this.createConversationUseCase = createConversationUseCase;
         this.getConversationListUseCase = getConversationListUseCase;
         this.addMembersUseCase = addMembersUseCase;
+        this.groupPermissionUseCase = groupPermissionUseCase;
         this.conversationRepository = conversationRepository;
         this.conversationMemberRepository = conversationMemberRepository;
         this.conversationMemberMapper = conversationMemberMapper;
@@ -120,13 +124,36 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
 
     @Override
     public void setConversationTop(Long conversationId, Long userId, boolean isTop) {
-        // 使用 MyBatis-Plus 的 UpdateWrapper 直接更新字段
-        // update conversation_member set is_top = ? where conversation_id = ? and user_id = ?
         conversationMemberMapper.update(null,
                 new LambdaUpdateWrapper<ConversationMember>()
                         .eq(ConversationMember::getConversationId, conversationId)
                         .eq(ConversationMember::getUserId, userId)
-                        .set(ConversationMember::getIsTop, isTop) // 更新 isTop 字段
+                        .set(ConversationMember::getIsTop, isTop)
         );
+    }
+
+    @Override
+    public void kickMember(Long conversationId, Long operatorId, Long targetUserId) {
+        groupPermissionUseCase.kickMember(conversationId, operatorId, targetUserId);
+    }
+
+    @Override
+    public void setAdmin(Long conversationId, Long operatorId, Long targetUserId, boolean isAdmin) {
+        groupPermissionUseCase.setAdmin(conversationId, operatorId, targetUserId, isAdmin);
+    }
+
+    @Override
+    public void transferOwner(Long conversationId, Long operatorId, Long newOwnerId) {
+        groupPermissionUseCase.transferOwner(conversationId, operatorId, newOwnerId);
+    }
+
+    @Override
+    public void dissolveGroup(Long conversationId, Long operatorId) {
+        groupPermissionUseCase.dissolveGroup(conversationId, operatorId);
+    }
+
+    @Override
+    public void muteUser(Long conversationId, Long operatorId, Long targetUserId, boolean isMuted) {
+        groupPermissionUseCase.muteUser(conversationId, operatorId, targetUserId, isMuted);
     }
 }

@@ -3,6 +3,8 @@ package com.bytedance.usecase.conversation;
 import com.bytedance.entity.Conversation;
 import com.bytedance.entity.ConversationMember;
 import com.bytedance.entity.User;
+import com.bytedance.exception.BizException;
+import com.bytedance.exception.ErrorCode;
 import com.bytedance.repository.IConversationMemberRepository;
 import com.bytedance.repository.IConversationRepository;
 import com.bytedance.repository.IUserRepository;
@@ -48,7 +50,7 @@ public class AddMembersUseCase {
         // 1. 校验会话
         Conversation conversation = conversationRepository.findById(conversationId);
         if (conversation == null) {
-            throw new RuntimeException("会话不存在");
+            throw new BizException(ErrorCode.CONVERSATION_NOT_FOUND);
         }
 
         // 【优化点 1】: 这里先不判断人数，等下面过滤完去重后再判断，更严谨
@@ -84,7 +86,7 @@ public class AddMembersUseCase {
 
             if (currentCount + addCount > 2) {
                 // 提示语可以根据产品需求调整，比如提示"请创建新的群聊"
-                throw new RuntimeException("单聊人数限制为 2 人，无法继续添加成员");
+                throw new BizException(ErrorCode.DM_MEMBER_LIMIT);
             }
         }
         // ========================================================
@@ -113,7 +115,7 @@ public class AddMembersUseCase {
 
             String content = String.format("%s 邀请 %s 加入了群聊", inviter.getUsername(), joinedNames);
             sendMessageUseCase.execute(conversationId, inviterId, 1,
-                    "{\"text\":\"" + content + "\"}");
+                    "{\"text\":\"" + content + "\"}", null, null);
         }
     }
 }

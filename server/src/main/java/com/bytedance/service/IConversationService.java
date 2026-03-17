@@ -39,4 +39,21 @@ public interface IConversationService extends IService<Conversation> {
     void clearAllUnreadCount(Long userId);
 
     void setConversationTop(Long conversationId, Long userId, boolean isTop);
+
+    // ======== 群组权限管理 ========
+
+    /** 踢出成员 */
+    void kickMember(Long conversationId, Long operatorId, Long targetUserId);
+
+    /** 设置/取消管理员 */
+    void setAdmin(Long conversationId, Long operatorId, Long targetUserId, boolean isAdmin);
+
+    /** 转让群主 */
+    void transferOwner(Long conversationId, Long operatorId, Long newOwnerId);
+
+    /** 解散群聊 */
+    void dissolveGroup(Long conversationId, Long operatorId);
+
+    /** 禁言/解除禁言 */
+    void muteUser(Long conversationId, Long operatorId, Long targetUserId, boolean isMuted);
 }

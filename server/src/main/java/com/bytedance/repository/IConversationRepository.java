@@ -47,5 +47,15 @@ public interface IConversationRepository {
      * 仅当 newSeq > currentSeq 时才更新，避免并发写入时回退
      */
     boolean casUpdateSeqAndSummary(Long conversationId, Long newSeq, String lastMsgContent, java.time.LocalDateTime lastMsgTime);
+
+    /**
+     * 更新群主
+     */
+    void updateOwnerId(Long conversationId, Long newOwnerId);
+
+    /**
+     * 删除会话（解散群聊）
+     */
+    void deleteById(Long conversationId);
 }
 

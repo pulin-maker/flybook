@@ -3,22 +3,45 @@ server:
 spring:
   application:
     name: flybook
+  # ShardingSphere JDBC Driver 模式
   datasource:
-    driver-class-name: com.mysql.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/flybook?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
+    url: jdbc:shardingsphere:classpath:shardingsphere.yaml
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: auto
+        prefetch: 10
+        concurrency: 2
+        max-concurrency: 8
   redis:
     host: 127.0.0.1
     port: 6379
     password:
     database: 0
     timeout: 3000ms
+    lettuce:
+      pool:
+        min-idle: 4
+        max-idle: 8
+        max-active: 16
+        max-wait: 3000ms
+  elasticsearch:
+    uris: http://127.0.0.1:9200
+    connection-timeout: 5s
+    socket-timeout: 30s
 jackson:
   default-property-inclusion: non_null
 
 mybatis-plus:
-  type-aliases-package: com.flybook.entity
+  type-aliases-package: com.bytedance.entity
 
 logging:
   level:
@@ -27,7 +50,7 @@ logging:
     org.springframework.web.socket.server: debug
     javax.websocket: debug
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
 
 jwt:
   secret: 0IjoxNzY0NDIxNjk3LCJleHAiOjE3NjUwMjY0OTd
@@ -53,13 +76,19 @@ flybook:
   server:
     id: # 留空则自动生成
   mq:
-    topic: flybook-message-push
-    consumer-group: flybook-push-consumer-group
+    exchange: flybook.message
+    dlx-exchange: flybook.message.dlx
+    outbox:
+      retry-interval-ms: 10000
+      max-retry: 5
+      batch-size: 100
 
-# RocketMQ 配置
-rocketmq:
-  name-server: 127.0.0.1:9876
-  producer:
-    group: flybook-producer-group
-    send-message-timeout: 3000
-    retry-times-when-send-failed: 2
+# Actuator 健康检查端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

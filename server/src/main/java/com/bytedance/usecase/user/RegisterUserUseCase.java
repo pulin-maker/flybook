@@ -3,6 +3,8 @@ package com.bytedance.usecase.user;
 import cn.hutool.crypto.digest.BCrypt;
 import com.bytedance.dto.RegisterRequest;
 import com.bytedance.entity.User;
+import com.bytedance.exception.BizException;
+import com.bytedance.exception.ErrorCode;
 import com.bytedance.repository.IUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -29,7 +31,7 @@ public class RegisterUserUseCase {
     public void execute(RegisterRequest request) {
         // 1. 业务校验：检查用户名是否已存在
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("用户名已存在");
+            throw new BizException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
         // 2. 密码加密

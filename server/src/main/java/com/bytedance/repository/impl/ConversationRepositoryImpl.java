@@ -1,6 +1,7 @@
 package com.bytedance.repository.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bytedance.entity.Conversation;
 import com.bytedance.mapper.ConversationMapper;
 import com.bytedance.repository.IConversationRepository;
@@ -68,6 +69,20 @@ public class ConversationRepositoryImpl implements IConversationRepository {
     public boolean casUpdateSeqAndSummary(Long conversationId, Long newSeq, String lastMsgContent, java.time.LocalDateTime lastMsgTime) {
         int rows = conversationMapper.casUpdateSeqAndSummary(conversationId, newSeq, lastMsgContent, lastMsgTime);
         return rows > 0;
+    }
+
+    @Override
+    public void updateOwnerId(Long conversationId, Long newOwnerId) {
+        conversationMapper.update(null,
+                new LambdaUpdateWrapper<Conversation>()
+                        .eq(Conversation::getConversationId, conversationId)
+                        .set(Conversation::getOwnerId, newOwnerId)
+        );
+    }
+
+    @Override
+    public void deleteById(Long conversationId) {
+        conversationMapper.deleteById(conversationId);
     }
 }
 

@@ -1,0 +1,84 @@
+# ShardingSphere JDBC Driver 配置文件
+# 通过 jdbc:shardingsphere:classpath:shardingsphere.yaml 加载
+
+mode:
+  type: Standalone
+  repository:
+    type: JDBC
+
+dataSources:
+  ds_default:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: com.mysql.cj.jdbc.Driver
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/flybook?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
+    username: root
+    password: "123456"
+    hikari:
+      minimumIdle: 5
+      maximumPoolSize: 10
+  ds_msg_0:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: com.mysql.cj.jdbc.Driver
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/flybook_msg_0?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
+    username: root
+    password: "123456"
+    hikari:
+      minimumIdle: 3
+      maximumPoolSize: 10
+  ds_msg_1:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: com.mysql.cj.jdbc.Driver
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/flybook_msg_1?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8
+    username: root
+    password: "123456"
+    hikari:
+      minimumIdle: 3
+      maximumPoolSize: 10
+
+rules:
+  - !SHARDING
+    tables:
+      messages:
+        actualDataNodes: ds_msg_$->{0..1}.messages_$->{0..1}
+        databaseStrategy:
+          standard:
+            shardingColumn: conversation_id
+            shardingAlgorithmName: db-mod
+        tableStrategy:
+          standard:
+            shardingColumn: conversation_id
+            shardingAlgorithmName: tbl-msg-mod
+      message_reactions:
+        actualDataNodes: ds_msg_$->{0..1}.message_reactions_$->{0..1}
+        databaseStrategy:
+          standard:
+            shardingColumn: conversation_id
+            shardingAlgorithmName: db-mod
+        tableStrategy:
+          standard:
+            shardingColumn: conversation_id
+            shardingAlgorithmName: tbl-reaction-mod
+    bindingTables:
+      - messages,message_reactions
+    shardingAlgorithms:
+      db-mod:
+        type: INLINE
+        props:
+          algorithm-expression: ds_msg_$->{conversation_id % 2}
+      tbl-msg-mod:
+        type: INLINE
+        props:
+          algorithm-expression: messages_$->{((int)(conversation_id / 2)) % 2}
+      tbl-reaction-mod:
+        type: INLINE
+        props:
+          algorithm-expression: message_reactions_$->{((int)(conversation_id / 2)) % 2}
+    defaultDatabaseStrategy:
+      none:
+    defaultTableStrategy:
+      none:
+  - !SINGLE
+    defaultDataSource: ds_default
+
+props:
+  sql-show: true

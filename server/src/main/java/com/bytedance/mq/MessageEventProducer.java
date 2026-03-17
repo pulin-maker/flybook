@@ -1,9 +1,12 @@
 package com.bytedance.mq;
 
 import cn.hutool.json.JSONUtil;
+import com.bytedance.entity.MqOutbox;
 import com.bytedance.event.MessageSentEvent;
+import com.bytedance.mapper.MqOutboxMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -11,19 +14,23 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /**
  * 消息事件生产者
- * 在事务提交后将消息事件发送到 RocketMQ，确保不会为回滚的事务发送事件
+ * 在事务提交后将消息事件发送到 RabbitMQ，确保不会为回滚的事务发送事件
+ * 支持 Outbox Pattern 和 RoutingKey 路由
  */
 @Component
 @Slf4j
 public class MessageEventProducer {
 
-    private final RocketMQTemplate rocketMQTemplate;
+    private final RabbitTemplate rabbitTemplate;
+    private final MqOutboxMapper mqOutboxMapper;
 
-    @Value("${flybook.mq.topic:flybook-message-push}")
-    private String topic;
+    @Value("${flybook.mq.exchange:flybook.message}")
+    private String exchange;
 
-    public MessageEventProducer(RocketMQTemplate rocketMQTemplate) {
-        this.rocketMQTemplate = rocketMQTemplate;
+    @Autowired
+    public MessageEventProducer(RabbitTemplate rabbitTemplate, MqOutboxMapper mqOutboxMapper) {
+        this.rabbitTemplate = rabbitTemplate;
+        this.mqOutboxMapper = mqOutboxMapper;
     }
 
     /**
@@ -35,23 +42,68 @@ public class MessageEventProducer {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    doSend(event);
+                    doSend(event, null, RoutingKeys.MSG_SENT);
                 }
             });
         } else {
-            // 非事务上下文，直接发送
-            doSend(event);
+            doSend(event, null, RoutingKeys.MSG_SENT);
         }
     }
 
-    private void doSend(MessageSentEvent event) {
+    /**
+     * 通用事件发送（事务提交后），支持任意事件对象和 RoutingKey
+     */
+    public void sendEventAfterCommit(Object event, String routingKey) {
+        String json = JSONUtil.toJsonStr(event);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    doSendRaw(json, routingKey);
+                }
+            });
+        } else {
+            doSendRaw(json, routingKey);
+        }
+    }
+
+    /**
+     * 带 Outbox 的发送（用于定时任务补偿重发）
+     */
+    public void sendWithOutbox(Long outboxId, String routingKey, String body) {
+        try {
+            rabbitTemplate.convertAndSend(exchange, routingKey, body);
+
+            mqOutboxMapper.markSent(outboxId);
+            log.debug("MQ 消息发送成功（Outbox 补偿）: outboxId={}", outboxId);
+        } catch (Exception e) {
+            log.error("MQ 消息发送失败（Outbox 补偿）: outboxId={}", outboxId, e);
+            mqOutboxMapper.casUpdateStatus(outboxId, MqOutbox.Status.PENDING, MqOutbox.Status.PENDING);
+        }
+    }
+
+    private void doSend(MessageSentEvent event, Long outboxId, String routingKey) {
         try {
             String json = JSONUtil.toJsonStr(event);
-            rocketMQTemplate.convertAndSend(topic, json);
-            log.debug("MQ 消息发送成功: messageId={}, conversationId={}", event.getMessageId(), event.getConversationId());
+            rabbitTemplate.convertAndSend(exchange, routingKey, json);
+
+            if (outboxId != null) {
+                mqOutboxMapper.markSent(outboxId);
+            }
+
+            log.debug("MQ 消息发送成功: messageId={}, conversationId={}, routingKey={}",
+                    event.getMessageId(), event.getConversationId(), routingKey);
         } catch (Exception e) {
-            // MQ 发送失败不影响主流程，消息已在 MySQL 中，客户端可通过 sync API 拉取
-            log.error("MQ 消息发送失败: messageId={}", event.getMessageId(), e);
+            log.error("MQ 消息发送失败: messageId={}, outboxId={}", event.getMessageId(), outboxId, e);
+        }
+    }
+
+    private void doSendRaw(String json, String routingKey) {
+        try {
+            rabbitTemplate.convertAndSend(exchange, routingKey, json);
+            log.debug("MQ 事件发送成功: routingKey={}", routingKey);
+        } catch (Exception e) {
+            log.error("MQ 事件发送失败: routingKey={}", routingKey, e);
         }
     }
 }

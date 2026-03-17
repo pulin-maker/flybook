@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @TableName("messages")
 public class Message {
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long messageId;
 
     private Long conversationId;
@@ -39,6 +39,15 @@ public class Message {
 
     // 撤回 0=否, 1=是
     private Integer isRevoked;
+
+    // 是否已编辑 0=否, 1=是
+    private Integer isEdited;
+
+    // 编辑后的内容
+    private String editedContent;
+
+    // 最后编辑时间
+    private LocalDateTime editTime;
 
     private LocalDateTime createdTime;
 }

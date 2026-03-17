@@ -1,5 +1,7 @@
 package com.bytedance.service;
 
+import com.bytedance.exception.BizException;
+import com.bytedance.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -32,7 +34,7 @@ public class StorageService {
      */
     public String uploadFile(MultipartFile file) {
         if (file.isEmpty()) {
-            throw new RuntimeException("文件不能为空");
+            throw new BizException(ErrorCode.PARAM_INVALID, "文件不能为空");
         }
 
         // 1. 生成新文件名 (防止中文乱码和同名覆盖)
@@ -64,7 +66,7 @@ public class StorageService {
 
         } catch (IOException e) {
             log.error("文件上传失败", e);
-            throw new RuntimeException("文件保存失败: " + e.getMessage());
+            throw new BizException(ErrorCode.PARAM_INVALID, "文件保存失败");
         }
     }
 }

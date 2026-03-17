@@ -47,7 +47,7 @@ public class CreateConversationUseCase {
         ConversationMember member = ConversationMember.builder()
                 .conversationId(conversation.getConversationId())
                 .userId(ownerId)
-                .role(1) // 1=Admin
+                .role(2) // 0=普通成员, 1=管理员, 2=群主
                 .unreadCount(0) // 自己建的群，未读数是0
                 .joinedTime(LocalDateTime.now())
                 .build();

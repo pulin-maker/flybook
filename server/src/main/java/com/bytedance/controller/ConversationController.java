@@ -4,6 +4,13 @@ import cn.hutool.log.Log;
 import com.bytedance.dto.AddMemberRequest;
 import com.bytedance.dto.ConversationDTO;
 import com.bytedance.dto.TopRequest;
+import com.bytedance.dto.request.KickMemberRequest;
+import com.bytedance.dto.request.MuteUserRequest;
+import com.bytedance.dto.request.SetAdminRequest;
+import com.bytedance.dto.request.TransferOwnerRequest;
+import com.bytedance.exception.BizException;
+import com.bytedance.exception.ErrorCode;
+import com.bytedance.ratelimit.RateLimit;
 import com.bytedance.utils.UserContext;
 import com.bytedance.vo.ConversationVO;
 import com.bytedance.common.Result;
@@ -11,6 +18,7 @@ import com.bytedance.service.IConversationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
 import java.util.Set;
 
@@ -37,6 +45,7 @@ public class ConversationController {
      * 如果创建会话时提供了成员列表，会先检查是否存在相同会话名和成员的会话
      */
     @PostMapping("/create")
+    @RateLimit(permits = 10, window = 60)
     public Result<Long> create(@RequestBody ConversationDTO request) {
         Long userId = getUserId(request.getUserId());
         // 如果请求体中提供了 ownerId，使用它；否则使用当前用户ID
@@ -127,16 +136,68 @@ public class ConversationController {
         // 否则使用 UserContext 中的 userId（由拦截器设置）
         Long userId = UserContext.getUserId();
         if (userId == null) {
-            throw new RuntimeException("无法获取用户ID，请提供 userId");
+            throw new BizException(ErrorCode.USER_ID_REQUIRED);
         }
         return userId;
     }
 
     @PostMapping("/top")
     public Result<String> setTop(@RequestBody TopRequest request) {
-        Long userId = UserContext.getUserId(); // 获取当前登录用户ID
+        Long userId = UserContext.getUserId();
         conversationService.setConversationTop(request.getConversationId(), userId, request.getIsTop());
         return Result.success("操作成功");
+    }
+
+    // ======== 群组权限管理 ========
+
+    /**
+     * 踢出成员
+     */
+    @PostMapping("/members/kick")
+    public Result<Void> kickMember(@Valid @RequestBody KickMemberRequest request) {
+        Long userId = getUserId();
+        conversationService.kickMember(request.getConversationId(), userId, request.getTargetUserId());
+        return Result.success();
+    }
+
+    /**
+     * 设置/取消管理员
+     */
+    @PostMapping("/members/set-admin")
+    public Result<Void> setAdmin(@Valid @RequestBody SetAdminRequest request) {
+        Long userId = getUserId();
+        conversationService.setAdmin(request.getConversationId(), userId, request.getTargetUserId(), request.getIsAdmin());
+        return Result.success();
+    }
+
+    /**
+     * 转让群主
+     */
+    @PostMapping("/transfer-owner")
+    public Result<Void> transferOwner(@Valid @RequestBody TransferOwnerRequest request) {
+        Long userId = getUserId();
+        conversationService.transferOwner(request.getConversationId(), userId, request.getNewOwnerId());
+        return Result.success();
+    }
+
+    /**
+     * 解散群聊
+     */
+    @PostMapping("/dissolve")
+    public Result<Void> dissolveGroup(@RequestParam Long conversationId) {
+        Long userId = getUserId();
+        conversationService.dissolveGroup(conversationId, userId);
+        return Result.success();
+    }
+
+    /**
+     * 禁言/解除禁言
+     */
+    @PostMapping("/members/mute")
+    public Result<Void> muteUser(@Valid @RequestBody MuteUserRequest request) {
+        Long userId = getUserId();
+        conversationService.muteUser(request.getConversationId(), userId, request.getTargetUserId(), request.getIsMuted());
+        return Result.success();
     }
 }
 

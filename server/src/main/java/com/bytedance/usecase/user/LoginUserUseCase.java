@@ -2,6 +2,8 @@ package com.bytedance.usecase.user;
 
 import cn.hutool.core.util.StrUtil;
 import com.bytedance.entity.User;
+import com.bytedance.exception.BizException;
+import com.bytedance.exception.ErrorCode;
 import com.bytedance.repository.IUserRepository;
 import com.bytedance.utils.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +33,7 @@ public class LoginUserUseCase {
         // 1. 查询用户
         User user = userRepository.findByUsername(username);
         if (user == null) {
-            throw new RuntimeException("用户不存在");
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
         }
 
         // 2. 校验密码
@@ -44,7 +46,7 @@ public class LoginUserUseCase {
             // 用户有密码，需要验证
             // 注意：这里为了演示，使用明文对比。实际应该使用 BCryptPasswordEncoder
             if (!userPassword.equals(password)) {
-                throw new RuntimeException("密码错误");
+                throw new BizException(ErrorCode.PASSWORD_WRONG);
             }
         }
 

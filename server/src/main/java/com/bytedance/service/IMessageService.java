@@ -2,22 +2,25 @@ package com.bytedance.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.bytedance.entity.Message;
+import com.bytedance.entity.MessageReaction;
 
 import java.util.List;
 
 public interface IMessageService extends IService<Message> {
-    /**
-     * 发送文本消息
-     * @param conversationId 会话ID
-     * @param senderId 发送者ID
-     * @param text 文本内容
-     * @return 刚刚保存的消息实体（包含生成的 seq 和 messageId）
-     */
     Message sendTextMsg(Long conversationId, Long senderId, String text);
-
-    // 通用发送接口
-    Message sendMessage(Long conversationId, Long senderId, Integer msgType, String contentJson);
-
-    // 拉取历史消息
+    Message sendMessage(Long conversationId, Long senderId, Integer msgType, String contentJson,
+                        List<Long> mentionUserIds, Long quoteId);
     List<Message> syncMessages(Long conversationId, Long afterSeq);
+
+    /** 消息撤回 */
+    void revokeMessage(Long messageId, Long operatorId);
+
+    /** 消息编辑 */
+    Message editMessage(Long messageId, Long operatorId, String newContent);
+
+    /** 切换表情回应 */
+    boolean toggleReaction(Long messageId, Long userId, String reactionType);
+
+    /** 获取消息的表情回应列表 */
+    List<MessageReaction> getReactions(Long conversationId, Long messageId);
 }
