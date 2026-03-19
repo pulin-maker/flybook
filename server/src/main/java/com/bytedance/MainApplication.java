@@ -5,7 +5,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@MapperScan("com.bytedance.mapper")
+@MapperScan({
+    "com.bytedance.modules.user",
+    "com.bytedance.modules.message",
+    "com.bytedance.modules.conversation",
+    "com.bytedance.infrastructure.mq"
+})
 @SpringBootApplication
 @EnableScheduling
 public class MainApplication {

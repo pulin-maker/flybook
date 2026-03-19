@@ -1,8 +1,8 @@
 package com.bytedance;
 
-import com.bytedance.entity.Message;
-import com.bytedance.service.IConversationService;
-import com.bytedance.service.IMessageService;
+import com.bytedance.modules.message.Message;
+import com.bytedance.modules.conversation.IConversationService;
+import com.bytedance.modules.message.IMessageService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

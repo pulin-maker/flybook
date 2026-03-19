@@ -3,10 +3,10 @@ package com.bytedance;
 
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.bytedance.entity.Message;
-import com.bytedance.entity.User;
-import com.bytedance.mapper.MessageMapper;
-import com.bytedance.mapper.UserMapper;
+import com.bytedance.modules.message.Message;
+import com.bytedance.modules.user.User;
+import com.bytedance.modules.message.MessageMapper;
+import com.bytedance.modules.user.UserMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

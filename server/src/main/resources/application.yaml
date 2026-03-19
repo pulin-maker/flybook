@@ -41,7 +41,7 @@ jackson:
   default-property-inclusion: non_null
 
 mybatis-plus:
-  type-aliases-package: com.bytedance.entity
+  type-aliases-package: com.bytedance.modules,com.bytedance.infrastructure.mq
 
 logging:
   level:
